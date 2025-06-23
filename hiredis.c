@@ -1015,6 +1015,7 @@ int redisBufferWrite(redisContext *c, int *done) {
         return REDIS_ERR;
 
     if (sdslen(c->obuf) > 0) {
+        // 用户设置的函数去写，当然如果没设置直接用默认的write函数
         ssize_t nwritten = c->funcs->write(c);
         if (nwritten < 0) {
             return REDIS_ERR;
@@ -1048,7 +1049,7 @@ static int redisHandledPushReply(redisContext *c, void *reply) {
     return 0;
 }
 
-/* Get a reply from our reader or set an error in the context. */
+/* 从reader中获取一个reply，否则就是错误。如果取不到数据也返回OK. */
 int redisGetReplyFromReader(redisContext *c, void **reply) {
     if (redisReaderGetReply(c->reader, reply) == REDIS_ERR) {
         __redisSetError(c,c->reader->err,c->reader->errstr);
@@ -1063,8 +1064,11 @@ int redisGetReplyFromReader(redisContext *c, void **reply) {
  * redisGetReplyFromReader so as to not change its behavior. */
 static int redisNextInBandReplyFromReader(redisContext *c, void **reply) {
     do {
+        // 获取一个reply，取不到也是OK
         if (redisGetReplyFromReader(c, reply) == REDIS_ERR)
             return REDIS_ERR;
+
+        // 如果是push类型的数据，直接callback通知usr。我们需要给用户一个其他的reply
     } while (redisHandledPushReply(c, *reply));
 
     return REDIS_OK;
@@ -1074,19 +1078,19 @@ int redisGetReply(redisContext *c, void **reply) {
     int wdone = 0;
     void *aux = NULL;
 
-    /* Try to read pending replies */
+    /* 不停地处理数据 */
     if (redisNextInBandReplyFromReader(c,&aux) == REDIS_ERR)
         return REDIS_ERR;
 
-    /* For the blocking context, flush output buffer and read reply */
+    /* 阻塞的情况下，直接flush output buffer，然后阻塞等待reply */
     if (aux == NULL && c->flags & REDIS_BLOCK) {
-        /* Write until done */
+        /* 这里flush 所有 output buffer数据 */
         do {
             if (redisBufferWrite(c,&wdone) == REDIS_ERR)
                 return REDIS_ERR;
         } while (!wdone);
 
-        /* Read until there is a reply */
+        /* 这里从network读数据，然后找一个reply */
         do {
             if (redisBufferRead(c) == REDIS_ERR)
                 return REDIS_ERR;
@@ -1139,6 +1143,7 @@ int redisvAppendCommand(redisContext *c, const char *format, va_list ap) {
     char *cmd;
     int len;
 
+    // 拼接下command
     len = redisvFormatCommand(&cmd,format,ap);
     if (len == -1) {
         __redisSetError(c,REDIS_ERR_OOM,"Out of memory");
@@ -1148,6 +1153,7 @@ int redisvAppendCommand(redisContext *c, const char *format, va_list ap) {
         return REDIS_ERR;
     }
 
+    // 追加写到output buffer
     if (__redisAppendCommand(c,cmd,len) != REDIS_OK) {
         hi_free(cmd);
         return REDIS_ERR;

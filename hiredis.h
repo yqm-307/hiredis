@@ -330,10 +330,13 @@ redisFD redisFreeKeepFd(redisContext *c);
 int redisBufferRead(redisContext *c);
 int redisBufferWrite(redisContext *c, int *done);
 
-/* In a blocking context, this function first checks if there are unconsumed
- * replies to return and returns one if so. Otherwise, it flushes the output
- * buffer to the socket and reads until it has a reply. In a non-blocking
- * context, it will return unconsumed replies until there are no more. */
+/**
+ * @brief 阻塞下，如果有reply返回一个reply对象，否则将outputbuffer发送出去，
+ * 并阻塞等待reply返回。
+ * 
+ * 非阻塞，只会将output buffer发送出去，并不会阻塞等待reply返回。
+ * 
+ */
 int redisGetReply(redisContext *c, void **reply);
 int redisGetReplyFromReader(redisContext *c, void **reply);
 
@@ -341,8 +344,8 @@ int redisGetReplyFromReader(redisContext *c, void **reply);
  * to get a pipeline of commands. */
 int redisAppendFormattedCommand(redisContext *c, const char *cmd, size_t len);
 
-/* Write a command to the output buffer. Use these functions in blocking mode
- * to get a pipeline of commands. */
+
+//追加到output buffer里面，并不会发送
 int redisvAppendCommand(redisContext *c, const char *format, va_list ap);
 int redisAppendCommand(redisContext *c, const char *format, ...);
 int redisAppendCommandArgv(redisContext *c, int argc, const char **argv, const size_t *argvlen);
