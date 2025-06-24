@@ -572,6 +572,7 @@ void redisProcessCallbacks(redisAsyncContext *ac) {
     void *reply = NULL;
     int status;
 
+    // 取出reply并执行，直到取不出来为止
     while((status = redisGetReply(c,&reply)) == REDIS_OK) {
         if (reply == NULL) {
             /* When the connection is being disconnected and there are
@@ -581,8 +582,8 @@ void redisProcessCallbacks(redisAsyncContext *ac) {
                 __redisAsyncDisconnect(ac);
                 return;
             }
-            /* When the connection is not being disconnected, simply stop
-             * trying to get replies and wait for the next loop tick. */
+
+            // 这里就是没有发生异常，单纯数据处理完了。退出循环
             break;
         }
 
@@ -712,7 +713,7 @@ void redisAsyncRead(redisAsyncContext *ac) {
     if (redisBufferRead(c) == REDIS_ERR) {
         __redisAsyncDisconnect(ac);
     } else {
-        /* Always re-schedule reads */
+        /* 总是重新注册可读事件 */
         _EL_ADD_READ(ac);
         redisProcessCallbacks(ac);
     }
@@ -722,10 +723,13 @@ void redisAsyncRead(redisAsyncContext *ac) {
  * It processes all replies that can be read and executes their callbacks.
  */
 void redisAsyncHandleRead(redisAsyncContext *ac) {
+    // 吐槽下，其实connect关注的socket writeable事件。这里应该是
+    // 防御行编程
     redisContext *c = &(ac->c);
     /* must not be called from a callback */
     assert(!(c->flags & REDIS_IN_CALLBACK));
 
+    // 连接首次建立完成，调用Connect处理连接建立，还会通知用户
     if (!(c->flags & REDIS_CONNECTED)) {
         /* Abort connect was not successful. */
         if (__redisAsyncHandleConnect(ac) != REDIS_OK)

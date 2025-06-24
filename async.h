@@ -74,7 +74,7 @@ typedef struct redisAsyncContext {
     void *data;
     void (*dataCleanup)(void *privdata);
 
-    /* Event library data and hooks */
+    /* 自定义事件相关处理函数，这里设计很巧妙。如果用C++实现也许会更友好，但是性能可能没那么好了 */
     struct {
         void *data;
 
@@ -88,11 +88,10 @@ typedef struct redisAsyncContext {
         void (*scheduleTimer)(void *privdata, struct timeval tv);
     } ev;
 
-    /* Called when either the connection is terminated due to an error or per
-     * user request. The status is set accordingly (REDIS_OK, REDIS_ERR). */
+    /* disconnect时调用，比如连接出现各种错误、关闭连接时 */
     redisDisconnectCallback *onDisconnect;
 
-    /* Called when the first write event was received. */
+    /* 连接建立后调用 */
     redisConnectCallback *onConnect;
     redisConnectCallbackNC *onConnectNC;
 
@@ -103,7 +102,7 @@ typedef struct redisAsyncContext {
     struct sockaddr *saddr;
     size_t addrlen;
 
-    /* Subscription callbacks */
+    /* 订阅相关的回调 */
     struct {
         redisCallbackList replies;
         struct dict *channels;
