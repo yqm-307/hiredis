@@ -849,16 +849,16 @@ static int __redisAsyncCommand(redisAsyncContext *ac, redisCallbackFn *fn, void 
     sds sname;
     int ret;
 
-    /* Don't accept new commands when the connection is about to be closed. */
+    /* 检查下连接状态 */
     if (c->flags & (REDIS_DISCONNECTING | REDIS_FREEING)) return REDIS_ERR;
 
-    /* Setup callback */
+    /* 设置回调 */
     cb.fn = fn;
     cb.privdata = privdata;
     cb.pending_subs = 1;
     cb.unsubscribe_sent = 0;
 
-    /* Find out which command will be appended. */
+    /* 获取命令的类型（set、get、hset） */
     p = nextArgument(cmd,&cstr,&clen);
     assert(p != NULL);
     hasnext = (p[0] == '$');
@@ -975,12 +975,14 @@ int redisvAsyncCommand(redisAsyncContext *ac, redisCallbackFn *fn, void *privdat
     char *cmd;
     int len;
     int status;
+    // format指令
     len = redisvFormatCommand(&cmd,format,ap);
 
     /* We don't want to pass -1 or -2 to future functions as a length. */
     if (len < 0)
         return REDIS_ERR;
 
+    // 真正的发送逻辑
     status = __redisAsyncCommand(ac,fn,privdata,cmd,len);
     hi_free(cmd);
     return status;

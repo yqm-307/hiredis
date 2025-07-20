@@ -1215,8 +1215,11 @@ static void *__redisBlockForReply(redisContext *c) {
 }
 
 void *redisvCommand(redisContext *c, const char *format, va_list ap) {
+    // 这里将指令追加到outputbuffer
     if (redisvAppendCommand(c,format,ap) != REDIS_OK)
         return NULL;
+
+    // 如果是阻塞的，那么就需要等待reply
     return __redisBlockForReply(c);
 }
 
